@@ -36,7 +36,7 @@ class WHOISMonitor(object):
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
         self.redis_key = f"whois_records:{self.domain}"
-        self.logger = create_logger(f"WHOISMonitor-{self.domain}")
+        self.logger = create_logger(f"WHOISMonitor {self.domain}")
         self.WHOIS_SERVERS = WHOIS_SERVERS
 
     def _get_whois_server(self):
@@ -107,13 +107,15 @@ class WHOISMonitor(object):
 
         cached_data = self._get_cached_whois_data()
         if cached_data is None:
-            self.logger.info(f"WHOIS data not cached yet, nothing to compare with.")
+            self.logger.info(f"WHOIS records are not cached yet, nothing to compare with.")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f"[WHOISMonitor {get_region()}] {self.domain}: changes found\n"
-                slack_message += f"WHOIS data not cached yet, nothing to compare with.\n"
+                slack_message = f":warning: *[WHOISMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message += '```'
+                slack_message += "# WHOIS records are not cached yet, nothing to compare with.\n"
                 for k, v in current_data.items():
                     slack_message += f"- {k}: {v}\n"
+                slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
             return list(changed_data)
 
@@ -138,9 +140,11 @@ class WHOISMonitor(object):
             self.logger.info(f"changes found")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f"[WHOISMonitor {get_region()}] {self.domain}: changes found\n"
+                slack_message = f":warning: *[WHOISMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message += '```'
                 for data in changed_data:
                     slack_message += f"- {data}\n"
+                slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
         else:
             self.logger.info(f"no changes")

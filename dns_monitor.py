@@ -4,7 +4,7 @@ import json
 import dns.resolver
 from utils import slack, create_logger, create_redis_client, get_region
 
-class DNSMonitor:
+class DNSRecordMonitor:
     def __init__(self, domain, resolvers, slack_webhook_url=None):
         self.domain = domain
         self.resolver = dns.resolver.Resolver()
@@ -12,7 +12,7 @@ class DNSMonitor:
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
         self.redis_key = f"dns_records:{self.domain}"
-        self.logger = create_logger(f"DNSRecordMonitor-{self.domain}")
+        self.logger = create_logger(f"DNSRecordMonitor -{self.domain}")
 
     def fetch_dns_records(self):
         records = {}
@@ -34,10 +34,11 @@ class DNSMonitor:
         changes = set()
         cached_records = self.redis_client.get(self.redis_key)
         if not cached_records:
-            self.logger.info("DNS records not cached yet, nothing to compare with.")
-            changes.add("DNS records not cached yet, nothing to compare with.")
+            self.logger.info("DNS records are not cached yet, nothing to compare with.")
             for k, v in new_records.items():
                 changes.add(f"- {k}: {v}")
+            changes = list(changes)
+            changes.insert(0, "# DNS records are not cached yet, nothing to compare with.")
         else:
             cached_records = json.loads(cached_records)
             self.logger.debug(f"cached records: {cached_records}")
@@ -72,8 +73,10 @@ class DNSMonitor:
         changed_data = self.detect_changes(dns_records)
         if changed_data and len(changed_data) > 0:
             if self.slack_webhook_url:
-                slack_message = f"[DNSMonitor {get_region()}] {self.domain}: changes found\n"
+                slack_message = f":warning: *[DNSRecordMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message += '```'
                 slack_message += "\n".join(changed_data)
+                slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
         else:
             self.logger.debug("no changes")
@@ -89,7 +92,7 @@ def cli():
     resolvers = args.resolvers
     slack_webhook_url = args.slack_webhook_url
     for domain in domains:
-        DNSMonitor(domain, resolvers, slack_webhook_url).monitor()
+        DNSRecordMonitor(domain, resolvers, slack_webhook_url).monitor()
 
 
 if __name__ == "__main__":

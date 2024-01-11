@@ -24,7 +24,7 @@ def get_region():
     return region
 
 def create_logger(name):
-    logger = logging.getLogger(f"[{name}:{get_region()}]")
+    logger = logging.getLogger(f"[{name} {get_region()}]")
     level =  os.getenv("LOG_LEVEL", "DEBUG").upper()
     if level == "DEBUG":
         logger.setLevel(logging.DEBUG)
