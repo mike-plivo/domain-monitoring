@@ -2,7 +2,7 @@ import logging
 import whois21
 import json
 from whois_servers import WHOIS_SERVERS
-from utils import slack, create_logger, create_redis_client
+from utils import slack, create_logger, create_redis_client, get_region
 
 # avoid urllib3 debug logs
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -110,7 +110,7 @@ class WHOISMonitor(object):
             self.logger.info(f"WHOIS data not cached yet, nothing to compare with.")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f"WHOISMonitor {self.domain}: changes found\n"
+                slack_message = f"[WHOISMonitor {get_region()}] {self.domain}: changes found\n"
                 slack_message += f"WHOIS data not cached yet, nothing to compare with.\n"
                 for k, v in current_data.items():
                     slack_message += f"- {k}: {v}\n"
@@ -118,19 +118,27 @@ class WHOISMonitor(object):
             return list(changed_data)
 
         for cached_key, cached_value in cached_data.items():
-            current_value = current_data.get(cached_key)
+            current_value = current_data.get(cached_key, None)
             if current_value is None:
                 changed_data.add(f"{cached_key}: changed from: {cached_value} -> to: None (missing)")
                 self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: None (missing)")
             if cached_value != current_value:
                 changed_data.add(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
                 self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
+        for current_key, current_value in current_data.items():
+            cached_value = cached_data.get(current_key, None)
+            if cached_value is None:
+                changed_data.add(f"{current_key}: changed from: None (not present) -> to: {current_value}")
+                self.logger.info(f"{current_key}: changed from: None (not present) -> to: {current_value}")
+            if cached_value != current_value:
+                changed_data.add(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
+                self.logger.info(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
 
         if len(changed_data) > 0:
             self.logger.info(f"changes found")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f"WHOISMonitor {self.domain}: changes found\n"
+                slack_message = f"[WHOISMonitor {get_region()}] {self.domain}: changes found\n"
                 for data in changed_data:
                     slack_message += f"- {data}\n"
                 slack(slack_message, self.slack_webhook_url)

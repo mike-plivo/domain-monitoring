@@ -24,12 +24,7 @@ def get_region():
     return region
 
 def create_logger(name):
-    region = os.getenv("AWS_REGION", "")
-    if not region:
-        region = os.getenv("FLY_REGION", "")
-    if region:
-        region = f"-{region}"
-    logger = logging.getLogger(f"[{name}{region}]")
+    logger = logging.getLogger(f"[{name}:{get_region()}]")
     level =  os.getenv("LOG_LEVEL", "DEBUG").upper()
     if level == "DEBUG":
         logger.setLevel(logging.DEBUG)

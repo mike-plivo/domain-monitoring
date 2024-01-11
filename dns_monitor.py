@@ -2,7 +2,7 @@ import logging
 import argparse
 import json
 import dns.resolver
-from utils import slack, create_logger, create_redis_client
+from utils import slack, create_logger, create_redis_client, get_region
 
 class DNSMonitor:
     def __init__(self, domain, resolvers, slack_webhook_url=None):
@@ -51,8 +51,8 @@ class DNSMonitor:
                     changes.add(f"- {k} record: changed from: {v} -> to: {new_records[k]}")
             for k, v in new_records.items():
                 if k not in cached_records:
-                    self.logger.info(f"{k} record: changed from: None (missing) -> to: {v}")
-                    changes.add(f"- {k} record: changed from: None (missing) -> to: {v}")
+                    self.logger.info(f"{k} record: changed from: None (not present) -> to: {v}")
+                    changes.add(f"- {k} record: changed from: None (not present) )-> to: {v}")
                 if k in cached_records and sorted(cached_records[k]) != sorted(v):
                     self.logger.info(f"{k} record: changed from: {cached_records[k]} -> to: {v}")
                     changes.add(f"- {k} record: changed from: {cached_records[k]} -> to: {v}")
@@ -72,7 +72,7 @@ class DNSMonitor:
         changed_data = self.detect_changes(dns_records)
         if changed_data and len(changed_data) > 0:
             if self.slack_webhook_url:
-                slack_message = f"DNSMonitor {self.domain}: changes found\n"
+                slack_message = f"[DNSMonitor {get_region()}] {self.domain}: changes found\n"
                 slack_message += "\n".join(changed_data)
                 slack(slack_message, self.slack_webhook_url)
         else:
