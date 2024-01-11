@@ -83,14 +83,15 @@ class DNSMonitor:
 
 def cli():
     parser = argparse.ArgumentParser(description='DNS Resolver Script')
-    parser.add_argument('--domain', type=str, help='Domain to resolve')
+    parser.add_argument('--domains', type=str, help='Domains to monitor (comma separated list)', default=None)
     parser.add_argument('--resolvers', type=str, help='DNS resolvers addresses (comma separated list)', default='8.8.8.8')
     parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
     args = parser.parse_args()
-    domain = args.domain
+    domains = list(set([ x.strip() for x in args.domains.split(',') ]))
     resolvers = args.resolvers
     slack_webhook_url = args.slack_webhook_url
-    DNSMonitor(domain, resolvers, slack_webhook_url).monitor()
+    for domain in domains:
+        DNSMonitor(domain, resolvers, slack_webhook_url).monitor()
 
 
 if __name__ == "__main__":
