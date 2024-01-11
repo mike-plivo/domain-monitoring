@@ -6,6 +6,11 @@ function ctrl_c() {
 	exit 0
 }
 
+if [ -z $DOMAIN ]; then
+    echo "DOMAIN environment variable is not set"
+    exit 1
+fi
+
 echo "Monitoring $DOMAIN started"
 redis-server --daemonize yes
 
@@ -24,7 +29,7 @@ else
     while true; do
         if [ "$TEST_MODE" = "1" ]; then
             python3 /app/whois_monitor.py --domain=dummy.net --whois_timeout=30 --whois_server=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 45
+            sleep 30
         else
             python3 /app/whois_monitor.py --domain=$WHOIS_DOMAIN --whois_timeout=30 --slack_webhook_url="$SLACK_WEBHOOK_URL"
             sleep 300
@@ -41,7 +46,7 @@ else
     while true; do
         if [ "$TEST_MODE" = "1" ]; then
             python3 /app/dns_monitor.py --domains=dummy.net --resolvers=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 30
+            sleep 20
         else
             python3 /app/dns_monitor.py --domains="$DNS_DOMAINS" --resolver="$DNS_RESOLVERS" --slack_webhook_url="$SLACK_WEBHOOK_URL"
             sleep 120
