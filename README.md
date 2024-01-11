@@ -1,25 +1,40 @@
+WHOIS and DNS Records changes monitoring
 
+# Docker command to build the image locally
+```
+docker build -t local/domain_monitor .
+```
 
-
-# Run local test mode
-Start the docker image with the following environment variables:
+# Setup your .env file
+Note: you can also use environment variables instead of the .env file.
 
 ```
 # your domain
-DOMAIN=dummy.net
+DOMAIN=yourdomain
 # your slack webhook URL, this is optional
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX
-# test mode
-TEST_MODE=1
+# dns nameservers to resolve the domain records
+DNS_NAMESERVERS=x.x.x.x,y.y.y.y
 ```
 
-# Run with your domain
-Start the docker image with the following environment variables:
-
+# Execute in local test mode
+In this mode, no domain is tested. It's starting a test dns server and a test whois server responding with random data.
 ```
-# your domain
-DOMAIN=yourdomain.com
-# your slack webhook URL, this is optional
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXXXXXXXX/XXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX
+docker run -e TEST_MODE=1 --env-file .env -ti local/domain_monitor
+```
+
+You can also use the following script:
+```
+bash ./run_test.sh
+```
+
+# Execute with your domain
+```
+docker run --env-file .env -ti local/domain_monitor
+```
+
+You can also use the following script:
+```
+bash ./run.sh
 ```
 

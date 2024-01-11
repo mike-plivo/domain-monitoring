@@ -1,6 +1,7 @@
 import socket
 import random
 import string
+import logging
 
 RESPONSE_SAMPLE = {
                 "Domain Name": "DUMMY.NET",
@@ -20,11 +21,17 @@ RESPONSE_SAMPLE = {
 
 def run_server(host='127.0.0.1', port=43):
     # Create a TCP/IP socket
+    logger = logging.getLogger("WHOISTestServer")
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    fh = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    ch.setFormatter(fh)
+    logger.addHandler(ch)
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
     # Bind the socket to the address and port
     server_address = (host, port)
-    print(f"Starting up WHOIS server on {host} port {port}")
+    logger.info(f"Starting up WHOIS server on {host} port {port}")
     sock.bind(server_address)
     
     # Listen for incoming connections
@@ -32,15 +39,13 @@ def run_server(host='127.0.0.1', port=43):
     
     while True:
         # Wait for a connection
-        print("Waiting for a connection")
         connection, client_address = sock.accept()
-
         try:
-            print(f"Connection from {client_address}")
+            logger.info(f"Connection from {client_address}")
 
             # Receive the data in small chunks
             data = connection.recv(1024)
-            print(f"Received: {data.decode()}")
+            logger.info(f"Received: {data.decode()}")
 
             # Prepare and send a response
             random_keys = random.sample(list(RESPONSE_SAMPLE.keys()), random.randint(1, 3))
@@ -54,6 +59,7 @@ def run_server(host='127.0.0.1', port=43):
             for x in range(random.randint(1, 4)):
                 name_server = "".join(random.sample(string.ascii_letters, random.randint(1, 20)))
                 response += f"Name Server: {name_server}\n"
+            logger.info(f"Sending response")
             connection.sendall(response.encode())
 
         finally:

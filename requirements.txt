@@ -1,3 +1,5 @@
 whois21
+dnspython
+dnslib
 redis
 requests
