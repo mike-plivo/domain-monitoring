@@ -12,14 +12,19 @@ cp .env.example .env
 
 Then edit .env with your configuration.
 
-# Execute in local test mode
-In this mode, no domain is tested. It's starting a test dns server and a test whois server responding with random data.
+# Test mode
+1. In this mode, actual domain is not tested. Instead, a test DNS server and a test WHOIS server are initiated, both providing random data in response.
+1. In test mode, WHOIS monitoring takes place every 30 seconds, while DNS records are monitored every 20 seconds.
 ```
 bash ./run_test.sh
 ```
 
-# Execute with your domain
+# Production mode
+1. In this mode, actual domain is tested.
+1. WHOIS monitoring occurs at five-minute intervals and DNS records are checked every two minutes.
 ```
 bash ./run.sh
 ```
+
+
 
