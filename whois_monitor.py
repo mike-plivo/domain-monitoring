@@ -1,9 +1,8 @@
 import logging
-import redis
 import whois21
 import json
 from whois_servers import WHOIS_SERVERS
-from utils import slack
+from utils import slack, create_logger, create_redis_client
 
 # avoid urllib3 debug logs
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -35,17 +34,9 @@ class WHOISMonitor(object):
         self.whois_server = whois_server
         self.whois_timeout = whois_timeout
         self.slack_webhook_url = slack_webhook_url
-        if redis_client is None:
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=0)
-        else:
-            self.redis_client = redis_client
+        self.redis_client = create_redis_client()
         self.redis_key = f"whois_records:{self.domain}"
-        self.logger = logging.getLogger("WHOISMonitor")
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        fh = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        ch.setFormatter(fh)
-        self.logger.addHandler(ch)
+        self.logger = create_logger(f"WHOISMonitor-{self.domain}")
         self.WHOIS_SERVERS = WHOIS_SERVERS
 
     def _get_whois_server(self):

@@ -1,31 +1,22 @@
-import dns.resolver
-import json
 import logging
 import argparse
-import redis
-from utils import slack
+import json
+import dns.resolver
+from utils import slack, create_logger, create_redis_client
 
 class DNSMonitor:
-    def __init__(self, domain, resolvers, slack_webhook_url=None,
-                 redis_client=None):
+    def __init__(self, domain, resolvers, slack_webhook_url=None):
         self.domain = domain
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = list(set([ x.strip() for x in resolvers.split(',') ]))
         self.slack_webhook_url = slack_webhook_url
-        if redis_client is None:
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=0)
-        else:
-            self.redis_client = redis_client
+        self.redis_client = create_redis_client()
         self.redis_key = f"dns_records:{self.domain}"
-        self.logger = logging.getLogger("DNSMonitor")
-        self.logger.setLevel(logging.DEBUG)
-        ch = logging.StreamHandler()
-        fh = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        ch.setFormatter(fh)
-        self.logger.addHandler(ch)
+        self.logger = create_logger(f"DNSRecordMonitor-{self.domain}")
 
     def fetch_dns_records(self):
         records = {}
+        self.logger.debug(f"fetching DNS records for {self.domain} using resolvers {self.resolver.nameservers}")
         for record_type in ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA']:
             try:
                 answers = self.resolver.resolve(self.domain, record_type)
