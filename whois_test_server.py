@@ -20,6 +20,9 @@ RESPONSE_SAMPLE = {
                 "DNSSEC": "unsigned"
 }
 
+def is_true():
+    return bool(random.randint(0, 4))
+
 def run_server(host='127.0.0.1', port=43):
     # Create a TCP/IP socket
     logger = logging.getLogger("WHOISTestServer")
@@ -50,16 +53,22 @@ def run_server(host='127.0.0.1', port=43):
 
             # Prepare and send a response
             random_keys = random.sample(list(RESPONSE_SAMPLE.keys()), random.randint(1, 3))
+            responses = {}
             response = ""
             for key, value in RESPONSE_SAMPLE.items():
                 if key in random_keys:
                     new_value = "".join(random.sample(string.ascii_letters, random.randint(1, 20)))
                 else:
                     new_value = value
+                if is_true():
+                    responses[key] = new_value
+            for key, new_value in responses.items():
                 response += f"{key}: {new_value}\n"
+
             for x in range(random.randint(1, 4)):
-                name_server = "".join(random.sample(string.ascii_letters, random.randint(1, 20)))
-                response += f"Name Server: {name_server}\n"
+                if is_true():
+                    name_server = "".join(random.sample(string.ascii_letters, random.randint(1, 20)))
+                    response += f"Name Server: {name_server}\n"
             logger.info(f"Sending response")
             connection.sendall(response.encode())
 
