@@ -2,7 +2,7 @@ import logging
 import whois21
 import json
 from whois_servers import WHOIS_SERVERS
-from utils import slack, create_logger, create_redis_client, get_region
+from utils import slack, create_logger, create_redis_client, get_region, get_sensor_id
 
 # avoid urllib3 debug logs
 logging.getLogger("urllib3").setLevel(logging.WARNING)
@@ -31,12 +31,15 @@ class WHOISMonitor(object):
     def __init__(self, domain, whois_server=None, whois_timeout=30, 
                  slack_webhook_url=None, redis_client=None):
         self.domain = domain.lower().strip()
+        self.region = get_region()
+        self.sensor_id = get_sensor_id()
+        self.prefix = f"[WHOISMonitor][id={self.sensor_id}][geo={self.region}][domain={self.domain}]"
         self.whois_server = whois_server
         self.whois_timeout = whois_timeout
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
-        self.redis_key = f"whois_records:{self.domain}"
-        self.logger = create_logger(f"WHOISMonitor {self.domain}")
+        self.redis_key = f'whois_monitor:{self.sensor_id}:{self.domain}'
+        self.logger = create_logger(self.prefix)
         self.WHOIS_SERVERS = WHOIS_SERVERS
 
     def _get_whois_server(self):
@@ -47,7 +50,7 @@ class WHOISMonitor(object):
             suffix = '.' + tld
             suffix = suffix.lower().strip()
             if self.domain[len(suffix)+1:] == suffix:
-                self.logger.debug(f"{self.domain}: found WHOIS server {server} for {suffix}")
+                self.logger.debug(f"found WHOIS server {server} for {suffix}")
                 self.whois_server = server
                 return self.whois_server
         return None
@@ -85,6 +88,7 @@ class WHOISMonitor(object):
     def _store_whois_data(self, data):
         """ Store WHOIS data in Redis. """
         self.redis_client.set(self.redis_key, json.dumps(data))
+        self.redis_client.expire(self.redis_key, 600)
 
     def _get_cached_whois_data(self):
         """ Retrieve cached WHOIS data from Redis. """
@@ -110,7 +114,7 @@ class WHOISMonitor(object):
             self.logger.info(f"WHOIS records are not cached yet, nothing to compare with.")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f":warning: *[WHOISMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message = f":warning: *{self.prefix} changes detected*\n"
                 slack_message += '```'
                 slack_message += "# WHOIS records are not cached yet, nothing to compare with.\n"
                 for k, v in current_data.items():
@@ -122,9 +126,9 @@ class WHOISMonitor(object):
         for cached_key, cached_value in cached_data.items():
             current_value = current_data.get(cached_key, None)
             if current_value is None:
-                changed_data.add(f"{cached_key}: changed from: {cached_value} -> to: None (missing)")
-                self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: None (missing)")
-            if cached_value != current_value:
+                changed_data.add(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
+                self.logger.info(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
+            elif cached_value != current_value:
                 changed_data.add(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
                 self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
         for current_key, current_value in current_data.items():
@@ -132,15 +136,15 @@ class WHOISMonitor(object):
             if cached_value is None:
                 changed_data.add(f"{current_key}: changed from: None (not present) -> to: {current_value}")
                 self.logger.info(f"{current_key}: changed from: None (not present) -> to: {current_value}")
-            if cached_value != current_value:
+            elif cached_value != current_value:
                 changed_data.add(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
                 self.logger.info(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
 
         if len(changed_data) > 0:
-            self.logger.info(f"changes found")
+            self.logger.info(f"changes detected")
             self._store_whois_data(current_data)
             if self.slack_webhook_url is not None:
-                slack_message = f":warning: *[WHOISMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message = f":warning: *{self.prefix} changes detected*\n"
                 slack_message += '```'
                 for data in changed_data:
                     slack_message += f"- {data}\n"
@@ -152,9 +156,9 @@ class WHOISMonitor(object):
 
     def monitor(self):
         """ Monitor the specified domain for WHOIS data changes. """
-        self.logger.info(f"{self.domain}: monitoring started")
+        self.logger.info(f"monitoring started")
         self._whois_monitor()
-        self.logger.info(f"{self.domain}: monitoring completed")
+        self.logger.info(f"monitoring completed")
 
 def cli():
     import argparse

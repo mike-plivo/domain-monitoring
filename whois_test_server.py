@@ -1,3 +1,4 @@
+import sys
 import socket
 import random
 import string
@@ -67,5 +68,9 @@ def run_server(host='127.0.0.1', port=43):
             connection.close()
 
 if __name__ == "__main__":
-    run_server()
+    try:
+        run_server()
+    except KeyboardInterrupt:
+        print("Shutting down WHOIS server")
+    sys.exit(0)
 

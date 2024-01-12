@@ -10,10 +10,16 @@ def slack(message, slack_webhook_url):
     :param message: message to be sent
     :return: None
     """
+    if not slack_webhook_url or not message:
+        return None
     res = requests.post(
         slack_webhook_url,
         json={"text": message})
     return res
+
+def get_sensor_id():
+    sensor_id = os.getenv("SENSOR_ID") or ""
+    return sensor_id
 
 def get_region():
     region = os.getenv("AWS_REGION", "")
@@ -24,7 +30,7 @@ def get_region():
     return region
 
 def create_logger(name):
-    logger = logging.getLogger(f"[{name} {get_region()}]")
+    logger = logging.getLogger(f"{name}")
     level =  os.getenv("LOG_LEVEL", "DEBUG").upper()
     if level == "DEBUG":
         logger.setLevel(logging.DEBUG)

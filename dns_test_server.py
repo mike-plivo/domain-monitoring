@@ -1,3 +1,4 @@
+import sys
 import random
 import socket
 import logging
@@ -70,13 +71,18 @@ class RandomDNSResolver(BaseResolver):
 
         return reply
 
-def run():
+def run_server(host='127.0.0.1', port=53):
+    logger.info(f"Starting up DNS server on {host} port {port}")
     resolver = RandomDNSResolver()
-    logger.info("Starting DNS server")
-    server = DNSServer(resolver, port=53, address="127.0.0.1", logger=DNSLogger(prefix=False,logf=lambda s:s))
+    server = DNSServer(resolver, port=port, address=host, 
+                       logger=DNSLogger(prefix=False,logf=lambda s:s))
     server.start()
     logger.info("Stopping DNS server")
 
 if __name__ == '__main__':
-    run()
+    try:
+        run_server()
+    except KeyboardInterrupt:
+        print("Shutting down DNS server")
+    sys.exit(0)
 

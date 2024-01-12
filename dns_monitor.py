@@ -2,17 +2,20 @@ import logging
 import argparse
 import json
 import dns.resolver
-from utils import slack, create_logger, create_redis_client, get_region
+from utils import slack, create_logger, create_redis_client, get_region, get_sensor_id
 
 class DNSRecordMonitor:
     def __init__(self, domain, resolvers, slack_webhook_url=None):
         self.domain = domain
+        self.sensor_id = get_sensor_id()
+        self.region = get_region()
+        self.prefix = f"[DNSRecordMonitor][id={self.sensor_id}][geo={self.region}][domain={self.domain}]"
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = list(set([ x.strip() for x in resolvers.split(',') ]))
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
-        self.redis_key = f"dns_records:{self.domain}"
-        self.logger = create_logger(f"DNSRecordMonitor -{self.domain}")
+        self.redis_key = f'dns_record_monitor:{self.sensor_id}:{self.domain}'
+        self.logger = create_logger(self.prefix)
 
     def fetch_dns_records(self):
         records = {}
@@ -29,6 +32,7 @@ class DNSRecordMonitor:
 
     def store_records_in_redis(self, records):
         self.redis_client.set(self.redis_key, json.dumps(records))
+        self.redis_client.expire(self.redis_key, 600)
 
     def detect_changes(self, new_records):
         changes = set()
@@ -45,16 +49,16 @@ class DNSRecordMonitor:
             self.logger.debug(f"new records: {new_records}")
             for k, v in cached_records.items():
                 if k not in new_records:
-                    self.logger.info(f"{k} record: changed from: {v} -> to: None (missing)")
-                    changes.add(f"- {k} record: changed from: {v} -> to: None (missing)")
-                if k in new_records and sorted(new_records[k]) != sorted(v):
+                    self.logger.info(f"{k} record: deleted from: {v} -> to: None (not present)")
+                    changes.add(f"- {k} record: deleted from: {v} -> to: None (not present)")
+                elif k in new_records and sorted(new_records[k]) != sorted(v):
                     self.logger.info(f"{k} record: changed from: {v} -> to: {new_records[k]}")
                     changes.add(f"- {k} record: changed from: {v} -> to: {new_records[k]}")
             for k, v in new_records.items():
                 if k not in cached_records:
                     self.logger.info(f"{k} record: changed from: None (not present) -> to: {v}")
                     changes.add(f"- {k} record: changed from: None (not present) )-> to: {v}")
-                if k in cached_records and sorted(cached_records[k]) != sorted(v):
+                elif k in cached_records and sorted(cached_records[k]) != sorted(v):
                     self.logger.info(f"{k} record: changed from: {cached_records[k]} -> to: {v}")
                     changes.add(f"- {k} record: changed from: {cached_records[k]} -> to: {v}")
         if len(changes) > 0:
@@ -66,21 +70,21 @@ class DNSRecordMonitor:
 
     def monitor(self):
         """ Monitor the specified domain for WHOIS data changes. """
-        self.logger.info(f"{self.domain}: monitoring started with resolver {self.resolver.nameservers}")
+        self.logger.info(f"monitoring started")
         self.logger.info(f"fetching DNS records with resolver {self.resolver.nameservers}")
         dns_records = self.fetch_dns_records()
         self.logger.info(f"found new records: {json.dumps(dns_records)}")
         changed_data = self.detect_changes(dns_records)
         if changed_data and len(changed_data) > 0:
             if self.slack_webhook_url:
-                slack_message = f":warning: *[DNSRecordMonitor {get_region()}] {self.domain}: changes found*\n"
+                slack_message = f":warning: *{self.prefix} changes detected*\n"
                 slack_message += '```'
                 slack_message += "\n".join(changed_data)
                 slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
         else:
             self.logger.debug("no changes")
-        self.logger.info(f"{self.domain}: monitoring completed")
+        self.logger.info(f"monitoring completed")
 
 def cli():
     parser = argparse.ArgumentParser(description='DNS Resolver Script')
