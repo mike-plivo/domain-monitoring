@@ -14,7 +14,7 @@ def slack(message, slack_webhook_url):
         return None
     res = requests.post(
         slack_webhook_url,
-        json={"text": message})
+        json={"text": message + '\n'})
     return res
 
 def get_sensor_id():

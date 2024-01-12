@@ -34,52 +34,64 @@ class DNSRecordMonitor:
         self.redis_client.set(self.redis_key, json.dumps(records))
         self.redis_client.expire(self.redis_key, 600)
 
-    def detect_changes(self, new_records):
+    def detect_changes(self):
+        new_records = self.fetch_dns_records()
+        self.logger.info(f"found new records: {json.dumps(new_records)}")
+        changed = False
         changes = set()
         cached_records = self.redis_client.get(self.redis_key)
         if not cached_records:
-            self.logger.info("DNS records are not cached yet, nothing to compare with.")
+            msg = "DNS records are not cached yet, nothing to compare with."
+            self.logger.info(msg)
             for k, v in new_records.items():
-                changes.add(f"- {k}: {v}")
+                changes.add(f"{k}: {v}")
             changes = list(changes)
-            changes.insert(0, "# DNS records are not cached yet, nothing to compare with.")
-        else:
-            cached_records = json.loads(cached_records)
-            self.logger.debug(f"cached records: {cached_records}")
-            self.logger.debug(f"new records: {new_records}")
-            for k, v in cached_records.items():
-                if k not in new_records:
-                    self.logger.info(f"{k} record: deleted from: {v} -> to: None (not present)")
-                    changes.add(f"- {k} record: deleted from: {v} -> to: None (not present)")
-                elif k in new_records and sorted(new_records[k]) != sorted(v):
-                    self.logger.info(f"{k} record: changed from: {v} -> to: {new_records[k]}")
-                    changes.add(f"- {k} record: changed from: {v} -> to: {new_records[k]}")
-            for k, v in new_records.items():
-                if k not in cached_records:
-                    self.logger.info(f"{k} record: changed from: None (not present) -> to: {v}")
-                    changes.add(f"- {k} record: changed from: None (not present) )-> to: {v}")
-                elif k in cached_records and sorted(cached_records[k]) != sorted(v):
-                    self.logger.info(f"{k} record: changed from: {cached_records[k]} -> to: {v}")
-                    changes.add(f"- {k} record: changed from: {cached_records[k]} -> to: {v}")
+            self.logger.debug(f"caching DNS records")
+            self.store_records_in_redis(new_records)
+            return changed, msg, list(changes)
+
+        cached_records = json.loads(cached_records)
+        self.logger.debug(f"cached records: {cached_records}")
+        self.logger.debug(f"new records: {new_records}")
+        for k, v in cached_records.items():
+            if k not in new_records:
+                self.logger.info(f"{k} record: deleted from: {v} -> to: None (not present)")
+                changes.add(f"{k} record: deleted from: {v} -> to: None (not present)")
+            elif k in new_records and sorted(new_records[k]) != sorted(v):
+                self.logger.info(f"{k} record: changed from: {v} -> to: {new_records[k]}")
+                changes.add(f"{k} record: changed from: {v} -> to: {new_records[k]}")
+        for k, v in new_records.items():
+            if k not in cached_records:
+                self.logger.info(f"{k} record: changed from: None (not present) -> to: {v}")
+                changes.add(f"{k} record: changed from: None (not present) )-> to: {v}")
+            elif k in cached_records and sorted(cached_records[k]) != sorted(v):
+                self.logger.info(f"{k} record: changed from: {cached_records[k]} -> to: {v}")
+                changes.add(f"{k} record: changed from: {cached_records[k]} -> to: {v}")
         if len(changes) > 0:
-            self.logger.debug(f"caching new records")
+            msg = "DNS records changed"
+            changed = True
+            self.logger.info(msg)
+            self.logger.debug(f"caching new DNS records")
             self.store_records_in_redis(new_records)
         else:
-            self.logger.debug(f"no changes detected, not caching records")
-        return list(changes)
+            msg = "DNS records not changed"
+            changed = False
+            self.logger.info(msg)
+        return changed, msg, list(changes)
 
     def monitor(self):
         """ Monitor the specified domain for WHOIS data changes. """
         self.logger.info(f"monitoring started")
         self.logger.info(f"fetching DNS records with resolver {self.resolver.nameservers}")
-        dns_records = self.fetch_dns_records()
-        self.logger.info(f"found new records: {json.dumps(dns_records)}")
-        changed_data = self.detect_changes(dns_records)
+        changed, msg, changed_data = self.detect_changes()
         if changed_data and len(changed_data) > 0:
             if self.slack_webhook_url:
-                slack_message = f":warning: *{self.prefix} changes detected*\n"
+                if changed is True: emoji = ":warning:"
+                else: emoji = ":information_source:"
+                slack_message = f"{emoji} *{self.prefix}*\n{msg}\n"
                 slack_message += '```'
-                slack_message += "\n".join(changed_data)
+                for data in changed_data:
+                    slack_message += f"- {data}\n"
                 slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
         else:

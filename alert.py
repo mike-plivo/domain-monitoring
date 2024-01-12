@@ -24,8 +24,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.slack_webhook_url:
         prefix = f'[id={get_sensor_id()}][geo={get_region()}][domain={whois_domain}]'
-        msg = f':alert: [WHOISMonitor]{prefix} {args.message}'
+        msg = f':alert: *[WHOISMonitor]{prefix}*\n{args.message}'
         slack(msg, args.slack_webhook_url)
         for dns_domain in dns_domains:
-            msg = f':alert: [DNSRecordMonitor]{prefix} {args.message}'
+            msg = f':alert: *[DNSRecordMonitor]{prefix}*\n{args.message}'
             slack(msg, args.slack_webhook_url)

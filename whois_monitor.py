@@ -70,20 +70,24 @@ class WHOISMonitor(object):
         try:
             whois_server = self._get_whois_server()
             if whois_server is None:
-                self.logger.error(f"Error fetching {self.domain}: no WHOIS server found")
-                return None
+                msg = f"Error fetching {self.domain}: no WHOIS server found"
+                self.logger.error(msg)
+                return msg, None
             self.logger.info(f"fetching WHOIS data from {whois_server}")
             result = whois21.WHOIS(self.domain, servers=[whois_server], 
                                    use_rdap=False, timeout=self.whois_timeout)
             if result.success is False:
-                self.logger.error(f"Error fetching {self.domain}: {result.error}")
-                return None
+                msg = f"Error fetching {self.domain}: {result.error}"
+                self.logger.error(msg)
+                return msg, None
             data = self._whois_strip_data(result.whois_data)
             self.logger.debug(f"fetched {data}")
-            return data
+            msg = f"WHOIS data fetched for {self.domain}"
+            return msg, data
         except Exception as e:
-            self.logger.error(f"Error fetching {self.domain}: {e}")
-            return None
+            msg = f"Error fetching {self.domain}: {e}"
+            self.logger.error(msg)
+            return msg, None
 
     def _store_whois_data(self, data):
         """ Store WHOIS data in Redis. """
@@ -101,63 +105,72 @@ class WHOISMonitor(object):
         self.logger.debug(f"cached {data}")
         return data
 
-    def _whois_monitor(self):
+    def detect_changes(self):
         """ Check if WHOIS data has changed compared to cached data. """
-        changed_data = set()
-        current_data = self._fetch_whois_data()
+        chnaged = False
+        changes = set()
+        msg, current_data = self._fetch_whois_data()
 
         if current_data is None:
-            return list(changed_data)
+            changed = True
+            return changed, msg, list(changes)
 
         cached_data = self._get_cached_whois_data()
         if cached_data is None:
-            self.logger.info(f"WHOIS records are not cached yet, nothing to compare with.")
+            changed = False
+            msg = f"WHOIS records are not cached yet, nothing to compare with."
+            self.logger.info(msg)
+            for k, v in current_data.items():
+                changes.add(f"{k}: {v}")
+            changes = list(changes)
+            self.logger.debug(f"caching WHOIS records")
             self._store_whois_data(current_data)
-            if self.slack_webhook_url is not None:
-                slack_message = f":warning: *{self.prefix} changes detected*\n"
-                slack_message += '```'
-                slack_message += "# WHOIS records are not cached yet, nothing to compare with.\n"
-                for k, v in current_data.items():
-                    slack_message += f"- {k}: {v}\n"
-                slack_message += '```'
-                slack(slack_message, self.slack_webhook_url)
-            return list(changed_data)
+            return changed, msg, list(changes)
 
         for cached_key, cached_value in cached_data.items():
             current_value = current_data.get(cached_key, None)
             if current_value is None:
-                changed_data.add(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
+                changes.add(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
                 self.logger.info(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
             elif cached_value != current_value:
-                changed_data.add(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
+                changes.add(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
                 self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
         for current_key, current_value in current_data.items():
             cached_value = cached_data.get(current_key, None)
             if cached_value is None:
-                changed_data.add(f"{current_key}: changed from: None (not present) -> to: {current_value}")
+                changes.add(f"{current_key}: changed from: None (not present) -> to: {current_value}")
                 self.logger.info(f"{current_key}: changed from: None (not present) -> to: {current_value}")
             elif cached_value != current_value:
-                changed_data.add(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
+                changes.add(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
                 self.logger.info(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
-
-        if len(changed_data) > 0:
-            self.logger.info(f"changes detected")
+        if len(changes) > 0:
+            changed = True
+            msg = f"WHOIS records changed"
+            self.logger.info(msg)
+            self.logger.debug(f"caching new WHOIS records")
             self._store_whois_data(current_data)
-            if self.slack_webhook_url is not None:
-                slack_message = f":warning: *{self.prefix} changes detected*\n"
+        else:
+            msg = f"WHOIS records not changed"
+            changed = False
+            self.logger.info(msg)
+        return changed, msg, list(changes)
+
+    def monitor(self):
+        """ Monitor the specified domain for WHOIS data changes. """
+        self.logger.info(f"monitoring started")
+        changed, msg, changed_data = self.detect_changes()
+        if changed_data and len(changed_data) > 0:
+            if self.slack_webhook_url:
+                if changed is True: emoji = ":warning:"
+                else: emoji = ":information_source:"
+                slack_message = f"{emoji} *{self.prefix}*\n{msg}\n"
                 slack_message += '```'
                 for data in changed_data:
                     slack_message += f"- {data}\n"
                 slack_message += '```'
                 slack(slack_message, self.slack_webhook_url)
         else:
-            self.logger.info(f"no changes")
-        return list(changed_data)
-
-    def monitor(self):
-        """ Monitor the specified domain for WHOIS data changes. """
-        self.logger.info(f"monitoring started")
-        self._whois_monitor()
+            self.logger.debug("no changes")
         self.logger.info(f"monitoring completed")
 
 def cli():
