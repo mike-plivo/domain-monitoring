@@ -1,5 +1,5 @@
 import os
-from utils import slack, get_region
+from utils import slack, get_region, get_sensor_id
 import argparse
 
 if __name__ == '__main__':
@@ -23,8 +23,9 @@ if __name__ == '__main__':
     parser.add_argument('--slack_webhook_url', type=str, default=None)
     args = parser.parse_args()
     if args.slack_webhook_url:
-        msg = f':alert: [WHOISMonitor {region}] {whois_domain}: {args.message}'
+        prefix = f'[id={get_sensor_id()}][geo={get_region()}][domain={whois_domain}]'
+        msg = f':alert: [WHOISMonitor]{prefix} {args.message}'
         slack(msg, args.slack_webhook_url)
         for dns_domain in dns_domains:
-            msg = f':alert: [DNSMonitor {region}] {dns_domain}: {args.message}'
+            msg = f':alert: [DNSRecordMonitor]{prefix} {args.message}'
             slack(msg, args.slack_webhook_url)
