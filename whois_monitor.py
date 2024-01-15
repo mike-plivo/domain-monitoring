@@ -92,7 +92,13 @@ class WHOISMonitor(object):
     def _store_whois_data(self, data):
         """ Store WHOIS data in Redis. """
         self.redis_client.set(self.redis_key, json.dumps(data))
-        self.redis_client.expire(self.redis_key, 600)
+        self.redis_client.expire(self.redis_key, 86400)
+
+    def _refresh_ttl(self):
+        try:
+            self.redis_client.expire(self.redis_key, 86400)
+        except Exception as e:
+            self.logger.warning(f"could not refresh Redis TTL: {e}", exc_info=True)
 
     def _get_cached_whois_data(self):
         """ Retrieve cached WHOIS data from Redis. """
@@ -130,19 +136,19 @@ class WHOISMonitor(object):
         for cached_key, cached_value in cached_data.items():
             current_value = current_data.get(cached_key, None)
             if current_value is None:
-                changes.add(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
-                self.logger.info(f"{cached_key}: deleted from: {cached_value} -> to: None (not present)")
+                changes.add(f"{cached_key} -> record deleted: {cached_value} -> (not present)")
+                self.logger.info(f"{cached_key} -> record deleted: {cached_value} -> (not present)")
             elif cached_value != current_value:
-                changes.add(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
-                self.logger.info(f"{cached_key}: changed from: {cached_value} -> to: {current_value}")
+                changes.add(f"{cached_key} -> record changed: {cached_value} -> {current_value}")
+                self.logger.info(f"{cached_key} -> record changed: {cached_value} -> {current_value}")
         for current_key, current_value in current_data.items():
             cached_value = cached_data.get(current_key, None)
             if cached_value is None:
-                changes.add(f"{current_key}: changed from: None (not present) -> to: {current_value}")
-                self.logger.info(f"{current_key}: changed from: None (not present) -> to: {current_value}")
+                changes.add(f"{current_key} -> record added: (not present) -> {current_value}")
+                self.logger.info(f"{current_key} -> record added: (not present) -> {current_value}")
             elif cached_value != current_value:
-                changes.add(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
-                self.logger.info(f"{current_key}: changed from: {cached_value} -> to: {current_value}")
+                changes.add(f"{current_key} -> record changed: {cached_value} -> {current_value}")
+                self.logger.info(f"{current_key} -> record changed: {cached_value} -> {current_value}")
         if len(changes) > 0:
             changed = True
             msg = f"WHOIS records changed"
@@ -153,6 +159,7 @@ class WHOISMonitor(object):
             msg = f"WHOIS records not changed"
             changed = False
             self.logger.info(msg)
+            self._refresh_ttl()
         return changed, msg, list(changes)
 
     def monitor(self):
@@ -168,6 +175,10 @@ class WHOISMonitor(object):
                 for data in changed_data:
                     slack_message += f"- {data}\n"
                 slack_message += '```'
+                slack(slack_message, self.slack_webhook_url)
+        elif changed is True and len(changed_data) == 0:
+            if self.slack_webhook_url:
+                slack_message = f":warning: *{self.prefix}*\n{msg}\n"
                 slack(slack_message, self.slack_webhook_url)
         else:
             self.logger.debug("no changes")

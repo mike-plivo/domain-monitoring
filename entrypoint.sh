@@ -2,8 +2,8 @@
 trap ctrl_c INT
 
 function ctrl_c() {
-        echo "Trapped CTRL-C, exiting ..."
-        python3 /app/alert.py --message="process interrupted, exiting" --slack_webhook_url="$SLACK_WEBHOOK_URL"
+    echo "Trapped CTRL-C, exiting ..."
+    python3 /app/alert.py --message="process interrupted, exiting" --slack_webhook_url="$SLACK_WEBHOOK_URL"
 	exit 0
 }
 
