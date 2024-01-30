@@ -49,15 +49,15 @@ fi
 if [ "$DNS_MONITOR_DISABLED" = "1" ]; then
     echo "DNS monitor disabled"
 else
-    if [ -z $DNS_DOMAINS ]; then
-        DNS_DOMAINS=$DOMAIN
+    if [ -z $DNS_DOMAIN ]; then
+        DNS_DOMAIN=$DOMAIN
     fi
     while true; do
         if [ "$TEST_MODE" = "1" ]; then
-            python3 /app/dns_monitor.py --domains=dummy.net --resolvers=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
+            python3 /app/dns_monitor.py --domain=dummy.net --resolvers=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
             sleep 20
         else
-            python3 /app/dns_monitor.py --domains="$DNS_DOMAINS" --resolver="$DNS_RESOLVERS" --slack_webhook_url="$SLACK_WEBHOOK_URL"
+            python3 /app/dns_monitor.py --domain="$DNS_DOMAIN" --resolver="$DNS_RESOLVERS" --slack_webhook_url="$SLACK_WEBHOOK_URL"
             sleep 120
         fi
     done
