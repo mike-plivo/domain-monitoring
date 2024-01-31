@@ -30,13 +30,14 @@ class WHOISMonitor(BaseMonitor):
     def __init__(self, domain, whois_server=None, whois_timeout=30, 
                  slack_webhook_url=None):
         self.domain = domain.lower().strip()
-        if whois_server:
-            self.whois_server = whois_server
-        else:
-            self.whois_server = self._get_whois_server()
         self.whois_timeout = whois_timeout
         self.WHOIS_SERVERS = WHOIS_SERVERS
+        if not whois_server or whois_server == "auto":
+            self.whois_server = self._get_whois_server()
+        else:
+            self.whois_server = whois_server
         BaseMonitor.__init__(self, slack_webhook_url=slack_webhook_url, domain=domain, whois_server=self.whois_server)
+        self.logger.info(f"using WHOIS server {self.whois_server}")
 
     def _get_whois_server(self):
         """ Find WHOIS server for the given domain. """
@@ -44,7 +45,6 @@ class WHOISMonitor(BaseMonitor):
             suffix = '.' + tld
             suffix = suffix.lower().strip()
             if self.domain[len(suffix)+1:] == suffix:
-                self.logger.debug(f"found WHOIS server {server} for {suffix}")
                 self.whois_server = server
                 return self.whois_server
         return None
@@ -96,10 +96,10 @@ def cli():
     import argparse
     parser = argparse.ArgumentParser(description="WHOIS monitor")
     parser.add_argument("--domain", help="domain to monitor")
-    parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
-    parser.add_argument("--whois_server", help="whois_server (default autodetected)", default=None)
-    parser.add_argument("--whois_timeout", type=int, help="whois_timeout (default 30 seconds)", default=30)
-    parser.add_argument("--pause", help="pause time in seconds (default 300) between each check", type=int, default=300)
+    parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled).", default=None)
+    parser.add_argument("--whois_server", help="whois_server (default autodetected).", default=None)
+    parser.add_argument("--whois_timeout", type=int, help="whois_timeout (default 30 seconds).", default=30)
+    parser.add_argument("--pause", help="pause time in seconds (default 300) between each check.", type=int, default=300)
     args = parser.parse_args()
     domain = args.domain
     whois_server = args.whois_server
