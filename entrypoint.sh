@@ -26,9 +26,9 @@ if [ "$TEST_MODE" = "1" ]; then
     echo "Test mode"
     echo "Starting WHOIS test server" && python3 /app/whois_test_server.py &
     echo "Starting DNS test server" && python3 /app/dns_test_server.py &
-    python3 /app/run.py --whois 'domain=dummy.net;server=127.0.0.1;timeout=30' --dns 'domain=dummy.net;resolvers=127.0.0.1' --dns 'domain=ping.dummy.net;resolvers=127.0.0.1'
+    python3 /app/run.py --whois 'domain=dummy.net;server=127.0.0.1;timeout=30;pause=30' --dns 'domain=dummy.net;resolvers=127.0.0.1;pause=20' --dns 'domain=ping.dummy.net;resolvers=127.0.0.1;pause=20' --slack_webhook_url="$SLACK_WEBHOOK_URL"
 else
-    python3 /app/run.py $WHOIS_OPTIONS $DNS_OPTIONS --slack_webhook_url=$SLACK_WEBHOOK_URL
+    python3 /app/run.py $WHOIS_OPTIONS $DNS_OPTIONS --slack_webhook_url="$SLACK_WEBHOOK_URL"
 fi
 
 python3 /app/alert.py --message="process stopped" --slack_webhook_url="$SLACK_WEBHOOK_URL"
