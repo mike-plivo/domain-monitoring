@@ -66,7 +66,7 @@ class Runner(object):
         domain = ''
         resolvers = ''
         record_types = ''
-        pause = '60'
+        pause = '120'
         for option in options:
             key, value = option.split('=')
             if key == 'domain':
