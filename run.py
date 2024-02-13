@@ -28,26 +28,32 @@ class Runner(object):
         self.whois_script = self.args.whois_script or self.WHOIS_SCRIPT
         self.dns_script = self.args.dns_script or self.DNS_SCRIPT
 
-    def add_whois_command(self, domain, server, timeout=300):
+    def add_whois_command(self, whois):
         # Run the whois script
+        domain = args[0]
+        server = args[1] or None
+        timeout = args[2] or 30
         self.processes.append(subprocess.Popen([self.python_path, self.whois_script, 
                                                 "--domain", domain, "--whois_server", server, "--whois_timeout", timeout,
                                                 "--slack_webhook_url", self.args.slack_webhook_url
                                                 ]))
 
-    def add_dns_command(self, domain, resolvers, record_types):
+    def add_dns_command(self, args):
         # Run the dns script
+        domain = args[0]
+        resolvers = args[1] or None
+        record_types = args[2] or None
         self.processes.append(subprocess.Popen([self.python_path, self.dns_script, 
                                                 "--domain", domain, "--resolvers", resolvers, "--record_types", record_types,
                                                 "--slack_webhook_url", self.args.slack_webhook_url
                                                 ]))
 
     def serve_forever(self):
-        for whois in self.args.whois:
-            self.add_whois_command(whois[0], whois[1], whois[2])
+        for args in self.args.whois:
+            self.add_whois_command(args)
             time.sleep(0.2)
-        for dns in self.args.dns:
-            self.add_dns_command(dns[0], dns[1], dns[2])
+        for args in self.args.dns:
+            self.add_dns_command(args)
             time.sleep(0.2)
         for process in self.processes:
             process.wait()

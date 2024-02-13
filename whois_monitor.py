@@ -1,4 +1,4 @@
-from base_monitor import BaseMonitor
+from base_monitor import BaseMonitor, MonitorFactory
 import whois21
 import json
 from whois_servers import WHOIS_SERVERS
@@ -30,6 +30,8 @@ class WHOISMonitor(BaseMonitor):
     def __init__(self, domain, whois_server=None, whois_timeout=30, 
                  slack_webhook_url=None):
         self.domain = domain.lower().strip()
+        if not self.domain:
+            raise ValueError("domain is required")
         self.whois_timeout = whois_timeout
         self.WHOIS_SERVERS = WHOIS_SERVERS
         if not whois_server or whois_server == "auto":
@@ -92,22 +94,24 @@ class WHOISMonitor(BaseMonitor):
         self.logger.debug(f"cached {data}")
         return json.dumps(data)
 
-def cli():
-    import argparse
-    parser = argparse.ArgumentParser(description="WHOIS monitor")
-    parser.add_argument("--domain", help="domain to monitor")
-    parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled).", default=None)
-    parser.add_argument("--whois_server", help="whois_server (default autodetected).", default=None)
-    parser.add_argument("--whois_timeout", type=int, help="whois_timeout (default 30 seconds).", default=30)
-    parser.add_argument("--pause", help="pause time in seconds (default 300) between each check.", type=int, default=300)
-    args = parser.parse_args()
-    domain = args.domain
-    whois_server = args.whois_server
-    whois_timeout = args.whois_timeout
-    slack_webhook_url = args.slack_webhook_url
-    WHOISMonitor(domain, whois_server=whois_server, whois_timeout=whois_timeout, 
-                 slack_webhook_url=slack_webhook_url).serve_forever(pause=args.pause)
 
+class WHOISMonitorFactory(MonitorFactory):
+    def __init__(self, monitor_class=WHOISMonitor):
+        MonitorFactory.__init__(self, monitor_class)
+
+    def serve_forever(self):
+        self.parser.add_argument('--domain', type=str, help='Domain to monitor', default=None, required=True)
+        self.parser.add_argument("--whois_server", help="whois_server (default autodetected).", default=None)
+        self.parser.add_argument("--whois_timeout", type=int, help="whois_timeout (default 30 seconds).", default=30)
+        self.parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
+        self.parser.add_argument("--pause", help="pause time in seconds (default 60) between each check", type=int, default=300)
+        self.args = self.parser.parse_args()
+        self.slack_webhook_url = self.args.slack_webhook_url
+        self.pause = self.args.pause
+        self.monitor = self.monitor_class(self.args.domain, whois_server=self.args.whois_server, whois_timeout=self.args.whois_timeout, 
+                                          slack_webhook_url=self.slack_webhook_url)
+        self.monitor.serve_forever(pause=self.pause)
+        return self.monitor
 
 if __name__ == "__main__":
-    cli()
+    WHOISMonitorFactory(WHOISMonitor).serve_forever()

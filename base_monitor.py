@@ -1,6 +1,7 @@
 import traceback
 import time
 import json
+import argparse
 from utils import slack, create_logger, create_redis_client, get_region, get_sensor_id
 
 class BaseMonitor:
@@ -112,16 +113,26 @@ class BaseMonitor:
                 slack(slack_message, self.slack_webhook_url)
             time.sleep(pause)
 
-def cli():
-    import argparse
-    parser = argparse.ArgumentParser(description='Monitor records changes')
-    parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
-    parser.add_argument("--pause", help="pause time in seconds (default 60) between each check", type=int, default=60)
-    args = parser.parse_args()
-    slack_webhook_url = args.slack_webhook_url
-    BaseMonitor(domain, resolvers, slack_webhook_url).serve_forever(pause=args.pause)
+
+class MonitorFactory(object):
+    def __init__(self, monitor_class=None):
+        self.monitor_class = monitor_class
+        if not self.monitor_class:
+            raise ValueError("monitor_class is required")
+        self.name = self.monitor_class.__name__
+        self.parser = argparse.ArgumentParser(description=self.name)
+
+    def serve_forever(self):
+        self.parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
+        self.parser.add_argument("--pause", help="pause time in seconds (default 60) between each check", type=int, default=60)
+        self.args = self.parser.parse_args()
+        self.slack_webhook_url = self.args.slack_webhook_url
+        self.pause = self.args.pause
+        self.monitor = self.monitor_class(self.slack_webhook_url, **self.kwargs)
+        self.monitor.serve_forever(pause=self.pause)
+        return self.monitor
 
 
 if __name__ == "__main__":
-    cli()
+    MonitorFactory(BaseMonitor).serve_forever()
 
