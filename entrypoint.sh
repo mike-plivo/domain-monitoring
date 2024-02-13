@@ -7,11 +7,10 @@ function ctrl_c() {
 	exit 0
 }
 
-if [ -z $DOMAIN ]; then
-    echo "DOMAIN environment variable is not set"
+if [ -z "$WHOIS_OPTIONS" ] && [ -z "$DNS_OPTONS" ]; then
+    echo "WHOIS_OPTIONS and DNS_OPTONS are not set"
     exit 1
 fi
-
 
 export SENSOR_ID=$(python3 /app/generate_sensor_id.py)
 if [ -z $SENSOR_ID ]; then
@@ -25,45 +24,14 @@ redis-server --daemonize yes
 
 if [ "$TEST_MODE" = "1" ]; then
     echo "Test mode"
-    [ "$WHOIS_MONITOR_DISABLED" = "1" ] || echo "Starting WHOIS test server" && python3 /app/whois_test_server.py &
-    [ "$DNS_MONITOR_DISABLED" = "1" ] || echo "Starting DNS test server" && python3 /app/dns_test_server.py &
-fi
-
-if [ "$WHOIS_MONITOR_DISABLED" = "1" ]; then
-    echo "WHOIS monitor disabled"
+    echo "Starting WHOIS test server" && python3 /app/whois_test_server.py &
+    echo "Starting DNS test server" && python3 /app/dns_test_server.py &
+    python3 /app/run.py --whois 'domain=dummy.net;server=127.0.0.1;timeout=30' --dns 'domain=dummy.net;resolvers=127.0.0.1' --dns 'domain=ping.dummy.net;resolvers=127.0.0.1'
 else
-    if [ -z $WHOIS_DOMAIN ]; then
-        WHOIS_DOMAIN=$DOMAIN
-    fi
-    while true; do
-        if [ "$TEST_MODE" = "1" ]; then
-            python3 /app/whois_monitor.py --domain=dummy.net --whois_timeout=30 --whois_server=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 30
-        else
-            python3 /app/whois_monitor.py --domain=$WHOIS_DOMAIN --whois_timeout=30 --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 300
-        fi
-    done &
+    python3 /app/run.py $WHOIS_OPTIONS $DNS_OPTIONS --slack_webhook_url=$SLACK_WEBHOOK_URL
 fi
-
-if [ "$DNS_MONITOR_DISABLED" = "1" ]; then
-    echo "DNS monitor disabled"
-else
-    if [ -z $DNS_DOMAIN ]; then
-        DNS_DOMAIN=$DOMAIN
-    fi
-    while true; do
-        if [ "$TEST_MODE" = "1" ]; then
-            python3 /app/dns_monitor.py --domain=dummy.net --resolvers=127.0.0.1 --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 20
-        else
-            python3 /app/dns_monitor.py --domain="$DNS_DOMAIN" --resolver="$DNS_RESOLVERS" --slack_webhook_url="$SLACK_WEBHOOK_URL"
-            sleep 120
-        fi
-    done
-fi
-
 
 python3 /app/alert.py --message="process stopped" --slack_webhook_url="$SLACK_WEBHOOK_URL"
 echo "Monitoring shutdown with sensor id $SENSOR_ID"
+exit 0
 
