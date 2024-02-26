@@ -7,11 +7,6 @@ function ctrl_c() {
 	exit 0
 }
 
-if [ -z "$WHOIS_OPTIONS" ] && [ -z "$DNS_OPTONS" ]; then
-    echo "WHOIS_OPTIONS and DNS_OPTONS are not set"
-    exit 1
-fi
-
 export SENSOR_ID=$(python3 /app/generate_sensor_id.py)
 if [ -z $SENSOR_ID ]; then
     echo "Failed to generate sensor id"
@@ -28,7 +23,7 @@ if [ "$TEST_MODE" = "1" ]; then
     echo "Starting DNS test server" && python3 /app/dns_test_server.py &
     python3 /app/run.py --whois 'domain=dummy.net;server=127.0.0.1;timeout=30;pause=30' --dns 'domain=dummy.net;resolvers=127.0.0.1;pause=20' --dns 'domain=ping.dummy.net;resolvers=127.0.0.1;pause=20' --slack_webhook_url="$SLACK_WEBHOOK_URL"
 else
-    python3 /app/run.py $WHOIS_OPTIONS $DNS_OPTIONS --slack_webhook_url="$SLACK_WEBHOOK_URL"
+    python3 /app/run.py $COMMANDS --slack_webhook_url="$SLACK_WEBHOOK_URL"
 fi
 
 python3 /app/alert.py --message="process stopped" --slack_webhook_url="$SLACK_WEBHOOK_URL"

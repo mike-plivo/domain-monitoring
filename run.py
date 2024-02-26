@@ -30,11 +30,12 @@ class Runner(object):
         self.whois_script = self.args.whois_script or self.WHOIS_SCRIPT
         self.dns_script = self.args.dns_script or self.DNS_SCRIPT
 
+    def _strip_and_split_args(self, args):
+        return args.strip("'").strip('"').split(';')
+
     def spawn_whois_command(self, args):
         # args format is domain=<domain>;server=<optional>;timeout=30
-        args = args.strip("'")
-        args = args.strip('"')
-        options = args.split(';')
+        options = self._strip_and_split_args(args)
         domain = ''
         server = ''
         timeout = '30'
@@ -60,9 +61,7 @@ class Runner(object):
 
     def spawn_dns_command(self, args):
         # args format is domain=<domain>;resolvers=<resolvers>;record_types=<record_types>
-        args = args.strip("'")
-        args = args.strip('"')
-        options = args.split(';')
+        options = self._strip_and_split_args(args)
         domain = ''
         resolvers = ''
         record_types = ''
@@ -93,6 +92,9 @@ class Runner(object):
             for args in self.args.dns:
                 self.spawn_dns_command(args)
                 time.sleep(0.2)
+        if not self.processes:
+            print("No processes to run. Exiting.")
+            return
         for process in self.processes:
             process.wait()
 
