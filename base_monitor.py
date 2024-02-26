@@ -1,6 +1,7 @@
 import traceback
 import time
 import json
+import hashlib
 import argparse
 from utils import slack, create_logger, create_redis_client, get_region, get_sensor_id
 
@@ -11,12 +12,23 @@ class BaseMonitor:
         self.region = get_region()
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
-        self.redis_key = f'{self.class_name}:{self.sensor_id}'
+        self.redis_key = self._generate_redis_key(kwargs)
         self.prefix = f"[{self.class_name}][id={self.sensor_id}][geo={self.region}]"
         self.parameters = kwargs.copy()
         for k, v in self.parameters.items():
             self.prefix += f"[{k}={v}]"
         self.logger = create_logger(self.prefix)
+        self.logger.debug(f"initialized with parameters: {self.parameters}")
+        self.logger.debug(f"initialized with redis key: {self.redis_key}")
+
+    def _generate_redis_key(self, params):
+        # Convert the dictionary to a JSON string. Ensure the dictionary is sorted by key to maintain order.
+        d_str = json.dumps(params, sort_keys=True)
+        # Use hashlib to create a hash of the JSON string. Here, sha256 is used for a good balance of speed and collision resistance.
+        hash_obj = hashlib.sha256(d_str.encode())
+        # Return the hexadecimal representation of the digest
+        h = hash_obj.hexdigest()
+        return f"{self.class_name}:{self.sensor_id}:{h}"
 
     def fetch_new_records(self):
         raise NotImplementedError()

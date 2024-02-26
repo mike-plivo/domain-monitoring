@@ -3,14 +3,14 @@ import dns.resolver
 
 class DNSRecordMonitor(BaseMonitor):
     def __init__(self, domain, resolvers=None, record_types=None, slack_webhook_url=None):
+        self.domain = domain.lower().strip()
+        if not self.domain:
+            raise ValueError("domain is required")
         if not resolvers or resolvers == 'auto':
             resolvers = '208.67.222.222,208.67.220.220'
         if not record_types or record_types == 'auto':
             record_types = 'A,AAAA,MX,NS,TXT,CNAME,SOA'
         BaseMonitor.__init__(self, slack_webhook_url=slack_webhook_url, domain=domain, resolvers=resolvers)
-        self.domain = domain
-        if not self.domain:
-            raise ValueError("domain is required")
         self.resolver = dns.resolver.Resolver()
         self.resolver.nameservers = list(set([ x.strip() for x in resolvers.split(',') ]))
         self.record_types = list(set([ x.strip() for x in record_types.split(',') ]))
