@@ -3,6 +3,23 @@ import time
 import argparse
 
 
+class Command(object):
+    def __init__(self, python_exe, script, args):
+        self.python_exe = python_exe
+        self.script = script
+        self.args = args
+        self.process = None
+
+    def __repr__(self):
+        return "Command(python_exe=%s, script=%s, args=%s)" % (self.python_exe, self.script, self.args)
+
+    def run(self):
+        self.process = subprocess.Popen([self.python_exe, self.script] + self.args)
+
+    def wait(self):
+        return self.process.wait()
+
+
 class Runner(object):
     WHOIS_SCRIPT = 'whois_monitor.py'
     DNS_SCRIPT = 'dns_monitor.py'
@@ -53,11 +70,11 @@ class Runner(object):
             elif key == 'pause':
                 pause = value
         # Run the whois script
-        self.processes.append(subprocess.Popen([self.python_exe, self.whois_script, 
-                                                "--domain", domain, "--whois_server", server, "--whois_timeout", timeout,
-                                                "--slack_webhook_url", self.args.slack_webhook_url,
-                                                "--pause", pause
-                                                ]))
+        p = Command(self.python_exe, self.whois_script, 
+                          ["--domain", domain, "--whois_server", server, "--whois_timeout", timeout, 
+                           "--slack_webhook_url", self.args.slack_webhook_url, "--pause", pause])
+        p.run()
+        self.processes.append(p)
 
     def spawn_dns_command(self, args):
         # args format is domain=<domain>;resolvers=<resolvers>;record_types=<record_types>
@@ -77,13 +94,13 @@ class Runner(object):
             elif key == 'pause':
                 pause = value
         # Run the dns script
-        self.processes.append(subprocess.Popen([self.python_exe, self.dns_script, 
-                                                "--domain", domain, "--resolvers", resolvers, "--record_types", record_types,
-                                                "--slack_webhook_url", self.args.slack_webhook_url,
-                                                "--pause", pause
-                                                ]))
+        p = Command(self.python_exe, self.dns_script, 
+                          ["--domain", domain, "--resolvers", resolvers, "--record_types", record_types,
+                           "--slack_webhook_url", self.args.slack_webhook_url, "--pause", pause])
+        p.run()
+        self.processes.append(p)
 
-    def serve_forever(self):
+    def start(self):
         if self.args.whois:
             for args in self.args.whois:
                 self.spawn_whois_command(args)
@@ -93,10 +110,28 @@ class Runner(object):
                 self.spawn_dns_command(args)
                 time.sleep(0.2)
         if not self.processes:
-            print("No processes to run. Exiting.")
-            return
+            print("No process to start. Exiting.")
+            return 1
+        return 0
+
+    def wait(self):
+        errors = []
         for process in self.processes:
-            process.wait()
+            rt = process.wait()
+            if rt != 0:
+                print(f"{process} failed with exit code: {rt}")
+                errors.append(process)
+        if errors:
+            print(f"Errors occurred in the following processes: {errors}")
+            return 1
+        return 0
+
+    def serve_forever(self):
+        if self.start() != 0:
+            sys.exit(1)
+        if self.wait() != 0:
+            sys.exit(1)
+
 
 if __name__ == '__main__':
     Runner().serve_forever()
