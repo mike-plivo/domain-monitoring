@@ -3,7 +3,7 @@ trap ctrl_c INT
 
 function ctrl_c() {
     echo "Trapped CTRL-C, exiting ..."
-    python3 /app/alert.py --message="process interrupted, exiting" --slack_webhook_url="$SLACK_WEBHOOK_URL"
+    python3 /app/notify.py --slack_webhook_url="$SLACK_WEBHOOK_URL" --message="Monitoring shutdown with sensor id $SENSOR_ID"
 	exit 0
 }
 
@@ -13,8 +13,8 @@ if [ -z $SENSOR_ID ]; then
     exit 1
 fi
 echo "Monitoring started with sensor id $SENSOR_ID"
+python3 /app/notify.py --slack_webhook_url="$SLACK_WEBHOOK_URL" --message="Monitoring started with sensor id $SENSOR_ID"
 
-python3 /app/alert.py --message="process started" --slack_webhook_url="$SLACK_WEBHOOK_URL"
 redis-server --daemonize yes
 
 if [ "$TEST_MODE" = "1" ]; then
@@ -26,7 +26,7 @@ else
     python3 /app/run.py $COMMANDS --slack_webhook_url="$SLACK_WEBHOOK_URL"
 fi
 
-python3 /app/alert.py --message="process stopped" --slack_webhook_url="$SLACK_WEBHOOK_URL"
 echo "Monitoring shutdown with sensor id $SENSOR_ID"
+python3 /app/notify.py --slack_webhook_url="$SLACK_WEBHOOK_URL" --message="Monitoring shutdown with sensor id $SENSOR_ID"
 exit 0
 

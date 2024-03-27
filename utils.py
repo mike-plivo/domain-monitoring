@@ -23,11 +23,15 @@ def get_sensor_id():
 
 def get_region():
     region = os.getenv("AWS_REGION", "")
+    infra = 'aws'
     if not region:
+        infra = 'fly.io'
         region = os.getenv("FLY_REGION", "")
     if not region:
+        infra = 'local'
         region = socket.gethostname() or "unknown"
-    return region
+    r = f'{infra}/{region}'
+    return r
 
 def create_logger(name):
     logger = logging.getLogger(f"{name}")

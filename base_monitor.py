@@ -13,7 +13,7 @@ class BaseMonitor:
         self.slack_webhook_url = slack_webhook_url
         self.redis_client = create_redis_client()
         self.redis_key = self._generate_redis_key(kwargs)
-        self.prefix = f"[{self.class_name}][id={self.sensor_id}][geo={self.region}]"
+        self.prefix = f"[sensorid={self.sensor_id}][mod={self.class_name}][geo={self.region}]"
         self.parameters = kwargs.copy()
         for k, v in self.parameters.items():
             self.prefix += f"[{k}={v}]"
@@ -115,15 +115,24 @@ class BaseMonitor:
         self.logger.info(f"monitoring completed")
 
     def serve_forever(self, pause=60):
+        slack_message = f":alert: *{self.prefix}*\nprocess started"
+        slack(slack_message, self.slack_webhook_url)
         while True:
             try:
                 self.monitor()
+                time.sleep(pause)
+            except KeyboardInterrupt:
+                slack_message = f":alert: *{self.prefix}*\nprocess interrupted, exiting..."
+                slack(slack_message, self.slack_webhook_url)
+                break
             except Exception as e:
                 self.logger.error(f"{e}", exc_info=True)
                 slack_message = f":ouch: *{self.prefix}*\nerror: {e}"
                 slack_message += f"\n```{traceback.format_exc()}```"
                 slack(slack_message, self.slack_webhook_url)
-            time.sleep(pause)
+                time.sleep(pause)
+        slack_message = f":alert: *{self.prefix}*\nprocess stopped"
+        slack(slack_message, self.slack_webhook_url)
 
 
 class MonitorFactory(object):
