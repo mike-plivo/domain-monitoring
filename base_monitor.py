@@ -33,6 +33,16 @@ class BaseMonitor:
     def fetch_new_records(self):
         raise NotImplementedError()
 
+    def _fetch_new_records(self):
+        records = self.fetch_new_records()
+        new_records = {}
+        for k, v in records.items():
+            if not isinstance(v, list):
+                new_records[k] = [v]
+            else:
+                new_records[k] = v
+        return new_records
+
     def store_records_in_redis(self, records):
         self.redis_client.set(self.redis_key, json.dumps(records))
         self.redis_client.expire(self.redis_key, 86400)
@@ -47,7 +57,7 @@ class BaseMonitor:
         return self.redis_client.get(self.redis_key)
 
     def detect_changes(self):
-        new_records = self.fetch_new_records()
+        new_records = self._fetch_new_records()
         self.logger.info(f"found new records: {json.dumps(new_records)}")
         changed = False
         changes = set()

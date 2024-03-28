@@ -21,7 +21,8 @@ bash ./run_test.sh
 
 # Production mode
 1. In this mode, actual domain is tested.
-1. WHOIS monitoring occurs at five-minute intervals and DNS records are checked every two minutes.
+1. WHOIS monitoring occurs at five-minute intervals, DNS records are checked every two minutes, and HTTP monitoring is performed every minute.
+
 ```
 bash ./run.sh
 ```

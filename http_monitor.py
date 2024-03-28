@@ -1,3 +1,4 @@
+from utils import str2bool
 from base_monitor import BaseMonitor, MonitorFactory
 import requests
 
@@ -26,15 +27,17 @@ class HTTPMonitor(BaseMonitor):
                                         headers=self.headers, 
                                         verify=self.verify_ssl,
                                         timeout=(self.connect_timeout, self.timeout))
-            response.raise_for_status()
-            records[self.url] = {'method': self.method, 
-                                 'payload': self.payload,
-                                 'headers': self.headers,
-                                 'timeout': self.timeout,
-                                 'verify_ssl': self.verify_ssl,
-                                 'connect_timeout': self.connect_timeout,
-                                 'response_status_code': response.status_code, 
-                                 'response_text': response.text}
+            text = response.text[:200] + '...' if len(response.text) > 200 else response.text
+            records = {'url': self.url,
+                       'request_method': self.method, 
+                       'request_payload': self.payload,
+                       'request_headers': self.headers,
+                       'request_connect_timeout': self.connect_timeout,
+                       'request_timeout': self.timeout,
+                       'request_verify_ssl': self.verify_ssl,
+                       'response_text': text,
+                       'response_status_code': response.status_code
+                       }
             self.logger.debug(f"fetched url: {records}")
             return records
         except Exception as e:  
@@ -53,7 +56,7 @@ class HTTPMonitorFactory(MonitorFactory):
         self.parser.add_argument("--headers", help="HTTP headers (default None)", default=None)
         self.parser.add_argument("--connect_timeout", type=int, help="HTTP connect timeout (default 5 seconds)", default=5)
         self.parser.add_argument("--timeout", type=int, help="HTTP timeout (default 15 seconds)", default=15)
-        self.parser.add_argument("--verify_ssl", type=bool, help="verify SSL (default True)", default=True)
+        self.parser.add_argument("--verify_ssl", type=str2bool, help="verify SSL (default True)", default=True)
         self.parser.add_argument("--slack_webhook_url", help="slack webhook url (default disabled)", default=None)
         self.parser.add_argument("--pause", help="pause time in seconds (default 60) between each check", type=int, default=60)
         self.args = self.parser.parse_args()
