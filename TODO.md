@@ -12,9 +12,9 @@
 
 # Arguments below can be passed multiple times
 ```
-  --ping=<domain/subdomain>[attempts=4;timeout=10]
-  DONE: --http=<URL>[method=GET;connect_timeout=5;timeout=30;verify_ssl=false;payload=<payload>;headers=<headers>]
-  DONE: --dns=<domain/subdomain>[resolvers=1.1.1.1,8.8.8.8;types=A,CNAME,MX,SOA,NS,TXT,...]
-  DONE: --whois=<domain>[server=<optional>;timeout=30]
+  --ping domain=<domain>;attempts=4;timeout=10
+  DONE: --whois domain=<domain>;server=<optional>;timeout=30
+  DONE: --dns domain=<domain>;resolvers=<resolvers>;record_types=<record_types>
+  DONE: --http url=<url>;method=<method>;timeout=<timeout>;connect_timeout=<connect_timeout>;payload=<payload>;headers=<headers>;verify_ssl=<verify_ssl>
 ```
 
