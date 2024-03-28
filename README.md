@@ -14,7 +14,7 @@ Then edit .env with your configuration.
 
 # Test mode
 1. In this mode, actual domain is not tested. Instead, a test DNS server and a test WHOIS server are initiated, both providing random data in response.
-1. In test mode, WHOIS monitoring takes place every thirty seconds, while DNS records are monitored every twenty seconds.
+1. In test mode, WHOIS monitoring takes place every thirty seconds, while DNS records are monitored every twenty seconds, and HTTP monitoring is performed every fifteen seconds.
 ```
 bash ./run_test.sh
 ```
