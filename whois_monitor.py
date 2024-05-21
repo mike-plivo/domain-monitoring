@@ -65,9 +65,8 @@ class WHOISMonitor(BaseMonitor):
         """ Fetch the given domain. """
         try:
             if self.whois_server is None:
-                msg = f"Error fetching {self.domain}: no WHOIS server found"
-                self.logger.error(msg)
-                return {}
+                raise Exception("no WHOIS server found")
+
             self.logger.info(f"fetching WHOIS data from {self.whois_server}")
             result = whois21.WHOIS(self.domain, servers=[self.whois_server], 
                                    use_rdap=False, timeout=self.whois_timeout)
@@ -81,7 +80,7 @@ class WHOISMonitor(BaseMonitor):
         except Exception as e:
             msg = f"Error fetching {self.domain}: {e}"
             self.logger.error(msg)
-            return {}
+            raise e
 
     def get_cached_records(self):
         """ Retrieve cached WHOIS data from Redis. """

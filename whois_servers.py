@@ -54,6 +54,7 @@ WHOIS_SERVERS = {
     "cy": "whois.ripe.net",
     "cz": "whois.nic.cz",
     "de": "whois.denic.de",
+    "dev": "whois.nic.google",
     "dk": "whois.dk-hostmaster.dk",
     "dm": "whois.nic.cx",
     "dz": "whois.nic.dz",
