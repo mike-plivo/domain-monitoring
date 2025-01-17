@@ -46,7 +46,8 @@ class WHOISMonitor(BaseMonitor):
         for tld, server in self.WHOIS_SERVERS.items():
             suffix = '.' + tld
             suffix = suffix.lower().strip()
-            if self.domain[len(suffix)+1:] == suffix:
+            domain_suffix = self.domain.split('.', 1)[-1]
+            if domain_suffix == suffix:
                 self.whois_server = server
                 return self.whois_server
         return None
