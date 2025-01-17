@@ -96,7 +96,7 @@ WHOIS_SERVERS = {
     "ie": "whois.domainregistry.ie",
     "il": "whois.isoc.org.il",
     "im": "whois.nic.im",
-    "in": "whois.inregistry.net",
+    "in": "whois.registry.in",
     "info": "whois.afilias.info",
     "ing": "domain-registry-whois.l.google.com",
     "ink": "whois.centralnic.com",
