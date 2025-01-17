@@ -44,7 +44,6 @@ class WHOISMonitor(BaseMonitor):
     def _get_whois_server(self):
         """ Find WHOIS server for the given domain. """
         for tld, server in self.WHOIS_SERVERS.items():
-            suffix = '.' + tld
             suffix = suffix.lower().strip()
             domain_suffix = self.domain.split('.', 1)[-1]
             if domain_suffix == suffix:
